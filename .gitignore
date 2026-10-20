@@ -1,0 +1,8 @@
+node_modules/
+.DS_Store
+
+# Source IFC samples and converted output: fetched by scripts/fetch-samples.sh
+samples/
+out/
+# Large model is not committed (16 MB); the script converts it into the app assets
+app/assets/models/schependomlaan.xkt

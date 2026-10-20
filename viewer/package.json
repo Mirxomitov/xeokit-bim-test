@@ -1,0 +1,20 @@
+{
+  "name": "viewer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@xeokit/xeokit-sdk": "^2.6.114"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  },
+  "type": "module"
+}
