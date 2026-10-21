@@ -8,6 +8,8 @@ import 'fake_statuses.dart';
 const _models = {
   'Duplex.xkt': 'Duplex (малый, 2 этажа)',
   'schependomlaan.xkt': 'Schependomlaan (жилой дом, 16 МБ)',
+  'skolebygg.xkt': 'Skolebygg (школа, IFC 57 МБ)',
+  'mab7000.xkt': 'MAB 7000 (28 этажей, IFC 73 МБ)',
 };
 
 const statusColors = {

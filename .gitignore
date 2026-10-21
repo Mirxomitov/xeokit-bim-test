@@ -4,5 +4,7 @@ node_modules/
 # Source IFC samples and converted output: fetched by scripts/fetch-samples.sh
 samples/
 out/
-# Large model is not committed (16 MB); the script converts it into the app assets
+# Large models are not committed; the script converts them into the app assets
 app/assets/models/schependomlaan.xkt
+app/assets/models/skolebygg.xkt
+app/assets/models/mab7000.xkt
