@@ -1,0 +1,12 @@
+{
+  "name": "aps-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "upload": "node --env-file=.env upload.js",
+    "start": "node --env-file=.env server.js"
+  },
+  "engines": {
+    "node": ">=20.6"
+  }
+}

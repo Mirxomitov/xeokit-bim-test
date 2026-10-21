@@ -8,3 +8,6 @@ out/
 app/assets/models/schependomlaan.xkt
 app/assets/models/skolebygg.xkt
 app/assets/models/mab7000.xkt
+# APS credentials and the URNs of the uploaded models (tied to one APS account)
+aps/server/.env
+aps/server/models.json
