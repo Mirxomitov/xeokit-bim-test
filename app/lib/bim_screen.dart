@@ -10,6 +10,7 @@ const _models = {
   'schependomlaan.xkt': 'Schependomlaan (жилой дом, 16 МБ)',
   'skolebygg.xkt': 'Skolebygg (школа, IFC 57 МБ)',
   'mab7000.xkt': 'MAB 7000 (28 этажей, IFC 73 МБ)',
+  'arboleda.xkt': 'Arboleda (16 уровней, IFC 155 МБ)',
 };
 
 const statusColors = {

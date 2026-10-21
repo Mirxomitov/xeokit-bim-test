@@ -9,6 +9,7 @@ viewer/     Vite + xeokit page with the Flutter bridge; builds into app/assets/v
 app/        Flutter app (iOS/Android): WebView + native floor list, legend, element card
 scripts/    fetch-samples.sh: downloads public IFC samples and converts them
 aps/        the same app on Autodesk Platform Services Viewer instead of xeokit (see below)
+hoops/      the same app on HOOPS Visualize Web instead of xeokit (see below)
 ```
 
 ## Run
@@ -30,7 +31,10 @@ exceptions are set. Element statuses are fake (`app/lib/fake_statuses.dart`): lo
 done, middle in progress, upper not started, about 3 % remarks. iOS minimum is 15.0.
 
 Sample models: `Duplex.ifc` from [xeokit-convert](https://github.com/xeokit/xeokit-convert),
-`schependomlaan.ifc` from the [web-ifc](https://github.com/ThatOpen/engine_web-ifc) test files.
+`schependomlaan.ifc`, `skolebygg.ifc` and `mab7000.ifc` from the [web-ifc](https://github.com/ThatOpen/engine_web-ifc)
+test files, `arboleda.ifc` from Vectorworks' Arboleda open BIM project. Arboleda is the model to
+compare all three engines on: Tech Soft 3D publishes the same building as `arboleda.scs`, so the
+HOOPS app shows it without a converter license.
 
 ## Bridge
 
@@ -75,7 +79,51 @@ What differs from xeokit, by design of the platform:
 - Storeys are found by searching the property database for `IfcBuildingStorey` (falls back to
   the children of the IFC building node).
 
+## HOOPS version (`hoops/`)
+
+The same Flutter UI and bridge, with [HOOPS Visualize Web](https://www.techsoft3d.com/products/hoops/visualize-web/)
+(Tech Soft 3D, formerly HOOPS Communicator) drawing the model. Like xeokit, everything runs on the
+phone: the viewer and the .scs models are app assets served on 127.0.0.1.
+
+```
+hoops/viewer/       Vite page on @ts3d-hoops/web-viewer (npm), same window.bim bridge; builds into hoops/app/assets/viewer
+hoops/app/          Flutter app: copy of app/ with the .scs model list
+hoops/convert.sh    IFC -> .scs with HOOPS Converter (Docker image techsoft3d/hoops-converter)
+hoops/fetch-demo.sh arboleda.scs and condo.scs, Tech Soft 3D's demo buildings, to try the app without a license
+```
+
+```sh
+./scripts/fetch-samples.sh                       # IFC samples in samples/
+echo -n "<HOOPS license key>" > hoops/license.txt
+./hoops/convert.sh                               # or: ./hoops/convert.sh Duplex
+./hoops/fetch-demo.sh                            # arboleda.scs, condo.scs (no license needed)
+cd hoops/viewer && npm ci && npm run build
+cd ../app && flutter run
+flutter run --dart-define=MODEL=arboleda.scs --dart-define=FLOOR=1
+```
+
+The converter needs a HOOPS license key (evaluation from techsoft3d.com); the web viewer itself
+needs none. Converter is a Windows/Linux binary; on a Mac it runs from Docker (colima works). The
+arm64 image 2026.8.0 is broken (empty system libraries, Xvfb won't start), so the script runs the
+amd64 image under emulation. With the SDK installed: `HOOPS_CONVERTER=/path/to/converter`.
+
+Nothing from HOOPS is committed: the npm packages and the converter are proprietary, so the built
+viewer (`hoops/app/assets/viewer`, includes `engine.esm.wasm`) and the .scs models are gitignored
+and built locally.
+
+What differs from xeokit:
+
+- Licensing: commercial (Tech Soft 3D), the conversion step needs a license key; xeokit is AGPL-3.0.
+- Size: the viewer is 4.7 MB (1.4 MB JS + 3.3 MB WebAssembly engine) against 0.9 MB for xeokit.
+- The viewer works with numeric node ids; the page maps them to IFC GlobalIds (the node's generic
+  id, or the `<TYPE>/GlobalId` property in older .scs files), so statuses use the same keys.
+- Converted IFC keeps the spatial tree; some converters add one grouping node per IFC class under
+  each storey (`IFCWALLSTANDARDCASE`, …), which the page skips to find the elements.
+- "Not started" is 35 % opaque like in xeokit (APS can't do that); floor isolation uses the x-ray
+  draw mode with the storey excluded from it. IfcSpace volumes are hidden.
+
 ## License
 
 AGPL-3.0, as required by xeokit-sdk and xeokit-convert (both AGPL-3.0). The APS Viewer is
-loaded from Autodesk's CDN under the Autodesk terms of use.
+loaded from Autodesk's CDN under the Autodesk terms of use. HOOPS Visualize Web is proprietary
+(Tech Soft 3D); it is installed from npm and not part of this repository.

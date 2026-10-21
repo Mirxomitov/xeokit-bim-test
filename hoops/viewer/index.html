@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>BIM viewer (HOOPS)</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f6f9; touch-action: none; }
+      #viewer { position: absolute; inset: 0; }
+      #msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+             font: 15px -apple-system, Roboto, sans-serif; color: #5b6475; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="viewer" tabindex="0"></div>
+    <div id="msg">Загрузка viewer…</div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

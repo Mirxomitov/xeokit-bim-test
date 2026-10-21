@@ -8,6 +8,12 @@ out/
 app/assets/models/schependomlaan.xkt
 app/assets/models/skolebygg.xkt
 app/assets/models/mab7000.xkt
+app/assets/models/arboleda.xkt
 # APS credentials and the URNs of the uploaded models (tied to one APS account)
 aps/server/.env
 aps/server/models.json
+# HOOPS: the converter license, and everything containing HOOPS code or converted models
+# (proprietary): build the viewer with npm and convert the models locally, see README
+hoops/license.txt
+hoops/app/assets/viewer/
+hoops/app/assets/models/*.scs

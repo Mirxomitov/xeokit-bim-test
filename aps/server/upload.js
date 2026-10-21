@@ -15,6 +15,7 @@ const ALL = {
   schependomlaan: "Schependomlaan (жилой дом)",
   skolebygg: "Skolebygg (школа, IFC 57 МБ)",
   mab7000: "MAB 7000 (28 этажей, IFC 73 МБ)",
+  arboleda: "Arboleda (16 уровней, IFC 155 МБ)",
 };
 
 const wanted = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(ALL);
