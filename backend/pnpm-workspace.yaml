@@ -1,0 +1,6 @@
+# Standalone for now; in CIP this package becomes part of the root workspace.
+# Install scripts are opt-in (supply chain), as in CIP.
+allowBuilds:
+  "@scarf/scarf": false
+  "@swc/core": false
+  "@nestjs/core": false

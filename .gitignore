@@ -4,11 +4,11 @@ node_modules/
 # Source IFC samples and converted output: fetched by scripts/fetch-samples.sh
 samples/
 out/
-# Large models are not committed; the script converts them into the app assets
-app/assets/models/schependomlaan.xkt
-app/assets/models/skolebygg.xkt
-app/assets/models/mab7000.xkt
-app/assets/models/arboleda.xkt
+# Large models are not committed; the script converts them into the backend's models folder
+backend/models/schependomlaan.xkt
+backend/models/skolebygg.xkt
+backend/models/mab7000.xkt
+backend/models/arboleda.xkt
 # APS credentials and the URNs of the uploaded models (tied to one APS account)
 aps/server/.env
 aps/server/models.json
@@ -17,3 +17,6 @@ aps/server/models.json
 hoops/license.txt
 hoops/app/assets/viewer/
 hoops/app/assets/models/*.scs
+# Client models and their generator: never committed (IFC/XKT are already in samples/ and out/)
+oqtepa/
+backend/models/oqtepa.xkt

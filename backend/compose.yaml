@@ -1,0 +1,19 @@
+# Local development only. Credentials here are placeholders for a throwaway local database.
+name: bim
+services:
+  postgres:
+    image: postgres:18.6-trixie
+    environment:
+      POSTGRES_USER: bim
+      POSTGRES_PASSWORD: local-bim-development-only
+      POSTGRES_DB: bim
+    # CIP uses 55433; this one sits next to it
+    ports: ['127.0.0.1:55434:5432']
+    volumes: ['bim_postgres:/var/lib/postgresql']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U bim -d bim']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  bim_postgres:

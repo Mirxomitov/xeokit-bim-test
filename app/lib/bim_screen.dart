@@ -3,15 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-import 'fake_statuses.dart';
-
-const _models = {
-  'Duplex.xkt': 'Duplex (малый, 2 этажа)',
-  'schependomlaan.xkt': 'Schependomlaan (жилой дом, 16 МБ)',
-  'skolebygg.xkt': 'Skolebygg (школа, IFC 57 МБ)',
-  'mab7000.xkt': 'MAB 7000 (28 этажей, IFC 73 МБ)',
-  'arboleda.xkt': 'Arboleda (16 уровней, IFC 155 МБ)',
-};
+import 'backend.dart';
+import 'statuses.dart';
 
 const statusColors = {
   ElementStatus.done: Color(0xFF22B054),
@@ -21,11 +14,13 @@ const statusColors = {
 };
 
 /// Native Flutter chrome (floors, legend, element card) around a WebView
-/// that only draws the xeokit model.
+/// that only draws the xeokit model. Models and statuses come from [backend].
 class BimScreen extends StatefulWidget {
-  const BimScreen({super.key, required this.baseUri});
+  const BimScreen({super.key, required this.baseUri, required this.backend});
 
+  /// The app's own asset server: the viewer page.
   final Uri baseUri;
+  final Backend backend;
 
   @override
   State<BimScreen> createState() => _BimScreenState();
@@ -33,14 +28,17 @@ class BimScreen extends StatefulWidget {
 
 class _BimScreenState extends State<BimScreen> {
   late final WebViewController _web;
-  // Test hooks: --dart-define=MODEL=schependomlaan.xkt --dart-define=FLOOR=2
-  String _model = const String.fromEnvironment('MODEL', defaultValue: 'Duplex.xkt');
+  // Test hooks: --dart-define=MODEL=schependomlaan --dart-define=FLOOR=2
+  String _model = const String.fromEnvironment('MODEL', defaultValue: 'arboleda'); // model key
+  List<Model>? _models; // null until fetched from the backend
+  bool _viewerReady = false;
   bool _loading = true;
   String? _error;
   String? _stats;
   List<Storey> _storeys = [];
   String? _floorId; // null = all floors
   Map<String, ElementStatus> _statuses = {};
+  StatusSnapshot? _snapshot;
 
   @override
   void initState() {
@@ -55,38 +53,85 @@ class _BimScreenState extends State<BimScreen> {
         },
       ))
       ..loadRequest(widget.baseUri.resolve('viewer/index.html'));
+    _fetchModels();
+  }
+
+  Future<void> _fetchModels() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final models = await widget.backend.models();
+      setState(() => _models = models);
+      if (_viewerReady) _loadModel(_model);
+    } catch (e) {
+      setState(() {
+        _loading = false;
+        _error = 'Сервер ${widget.backend.baseUri} недоступен (pnpm dev в backend/)\n$e';
+      });
+    }
   }
 
   Future<void> _call(String method, [List<Object?> args = const []]) =>
       _web.runJavaScript('window.bim.$method(${args.map(jsonEncode).join(',')})');
 
-  void _loadModel(String file) {
+  void _loadModel(String key) {
+    final models = _models;
+    if (models == null) {
+      _fetchModels();
+      return;
+    }
+    final model = models.where((m) => m.key == key).firstOrNull;
+    if (model == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Нет модели $key на сервере (backend/models/$key.xkt)';
+      });
+      return;
+    }
     setState(() {
-      _model = file;
+      _model = key;
       _loading = true;
       _error = null;
       _stats = null;
       _storeys = [];
       _floorId = null;
+      _statuses = {};
+      _snapshot = null;
     });
     // Edges cost GPU time; keep them for the small model only.
     _call('loadModel', [
-      widget.baseUri.resolve('models/$file').toString(),
-      {'edges': file == 'Duplex.xkt'},
+      widget.backend.fileUri(model).toString(),
+      {'edges': key == 'Duplex'},
     ]);
+  }
+
+  Future<void> _fetchStatuses(String key) async {
+    final model = _models?.where((m) => m.key == key).firstOrNull;
+    if (model == null) return;
+    try {
+      final snapshot = await widget.backend.statuses(model);
+      if (key != _model) return; // switched models meanwhile
+      _snapshot = snapshot;
+      _statuses = snapshot.statuses;
+      _call('setStatuses', [_statuses.map((id, s) => MapEntry(id, s.wire))]);
+    } catch (e) {
+      if (key == _model) setState(() => _error = 'Не удалось получить статусы\n$e');
+    }
   }
 
   void _onMessage(String raw) {
     final msg = jsonDecode(raw) as Map<String, dynamic>;
     switch (msg['type']) {
       case 'ready':
-        _loadModel(_model);
+        _viewerReady = true;
+        if (_models != null) _loadModel(_model);
       case 'loaded':
         final storeys = (msg['storeys'] as List)
             .map((s) => Storey.fromJson(s as Map<String, dynamic>))
             .toList();
-        _statuses = fakeStatuses(storeys);
-        _call('setStatuses', [_statuses.map((id, s) => MapEntry(id, s.wire))]);
+        _fetchStatuses(_model);
         setState(() {
           _loading = false;
           _storeys = storeys;
@@ -114,7 +159,7 @@ class _BimScreenState extends State<BimScreen> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (context) => _ElementCard(element: e, status: status),
+      builder: (context) => _ElementCard(element: e, status: status, snapshot: _snapshot),
     ).whenComplete(() => _call('select', [null]));
   }
 
@@ -128,8 +173,8 @@ class _BimScreenState extends State<BimScreen> {
             icon: const Icon(Icons.apartment_outlined),
             onSelected: _loadModel,
             itemBuilder: (_) => [
-              for (final e in _models.entries)
-                CheckedPopupMenuItem(value: e.key, checked: e.key == _model, child: Text(e.value)),
+              for (final m in _models ?? const <Model>[])
+                CheckedPopupMenuItem(value: m.key, checked: m.key == _model, child: Text(m.name)),
             ],
           ),
         ],
@@ -262,10 +307,20 @@ class _Legend extends StatelessWidget {
 }
 
 class _ElementCard extends StatelessWidget {
-  const _ElementCard({required this.element, required this.status});
+  const _ElementCard({required this.element, required this.status, required this.snapshot});
 
   final Map<String, dynamic> element;
   final ElementStatus status;
+  final StatusSnapshot? snapshot;
+
+  String? get _updated {
+    final s = snapshot;
+    if (s == null) return null;
+    final t = s.updatedAt;
+    String two(int n) => n.toString().padLeft(2, '0');
+    final when = '${two(t.day)}.${two(t.month)}.${t.year} ${two(t.hour)}:${two(t.minute)}';
+    return s.seeded ? '$when (тестовые данные)' : when;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -294,7 +349,10 @@ class _ElementCard extends StatelessWidget {
           row('Этаж', element['storeyName'] as String?),
           row('Тип IFC', element['ifcType'] as String?),
           row('GlobalId', element['id'] as String?),
-          row('Обновлено', 'тестовые данные'),
+          // Models built from a takeoff (CIP_Source): how reliable the element is, and why
+          if (element['quality'] != null) row('Данные', element['quality'] as String?),
+          if (element['note'] != null) row('Примечание', element['note'] as String?),
+          row('Обновлено', _updated),
         ],
       ),
     );

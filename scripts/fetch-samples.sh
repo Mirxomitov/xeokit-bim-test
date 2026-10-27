@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Downloads the public sample IFC models and converts them to XKT for the app.
+# Downloads the public sample IFC models and converts them to XKT for the backend.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 WEBIFC=https://raw.githubusercontent.com/ThatOpen/engine_web-ifc/main/tests/ifcfiles/public
 
-mkdir -p samples out app/assets/models
+mkdir -p samples out backend/models
 curl -fL -o samples/Duplex.ifc \
   https://raw.githubusercontent.com/xeokit/xeokit-convert/main/examples/sample-project/assets/Duplex.ifc
 curl -fL -o samples/schependomlaan.ifc "$WEBIFC/schependomlaan.ifc"
@@ -20,5 +20,5 @@ curl -fL -o samples/arboleda.ifc \
 (cd converter && npm ci --ignore-scripts)
 for m in Duplex schependomlaan skolebygg mab7000 arboleda; do
   (cd converter && NODE_OPTIONS=--max-old-space-size=12288 npx xeokit-convert -s "../samples/$m.ifc" -o "../out/$m.xkt" -l)
-  cp "out/$m.xkt" app/assets/models/
+  cp "out/$m.xkt" backend/models/
 done

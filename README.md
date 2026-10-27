@@ -5,6 +5,7 @@ Flutter WebView, with per-element status colours, floor isolation and tap-to-ins
 
 ```
 converter/  @xeokit/xeokit-convert: IFC -> XKT
+backend/    NestJS + PostgreSQL API (CIP stack): the .xkt models and the element statuses
 viewer/     Vite + xeokit page with the Flutter bridge; builds into app/assets/viewer
 app/        Flutter app (iOS/Android): WebView + native floor list, legend, element card
 scripts/    fetch-samples.sh: downloads public IFC samples and converts them
@@ -15,20 +16,47 @@ hoops/      the same app on HOOPS Visualize Web instead of xeokit (see below)
 ## Run
 
 ```sh
-# Optional: the larger sample model (Duplex.xkt is already in the app)
+# Optional: the larger sample models, Arboleda among them (Duplex.xkt is committed)
 ./scripts/fetch-samples.sh
+
+# Backend: Node 24, pnpm 12, Docker (colima works)
+cd backend && cp .env.example .env
+pnpm install
+pnpm db:up                     # PostgreSQL 18 on 127.0.0.1:55434
+pnpm dev                       # http://localhost:8091/api/bim/models, Swagger at /api/docs
 
 # After editing viewer/main.js
 cd viewer && npm ci && npm run build
 
-cd app && flutter run
-flutter run --dart-define=MODEL=schependomlaan.xkt --dart-define=FLOOR=2   # test hooks
+cd app && flutter run                                               # simulator: backend on localhost
+flutter run --dart-define=BACKEND=http://192.168.1.10:8091          # phone: the Mac's LAN address
+flutter run --dart-define=MODEL=schependomlaan --dart-define=FLOOR=2   # test hooks
 ```
 
-The building icon (top right) switches models. The app serves its assets on 127.0.0.1 because
-Android WebView blocks fetch() from file:// pages, so cleartext and ATS local-networking
-exceptions are set. Element statuses are fake (`app/lib/fake_statuses.dart`): lower floors
-done, middle in progress, upper not started, about 3 % remarks. iOS minimum is 15.0.
+The building icon (top right) switches models; Arboleda opens first. The viewer page is still
+bundled in the app and served on 127.0.0.1 (Android WebView blocks fetch() from file:// pages),
+so cleartext and ATS local-networking exceptions are set; the models and statuses come from the
+backend. iOS minimum is 15.0.
+
+## Backend (`backend/`)
+
+The same stack as CIP's `apps/backend` (NestJS 12, TypeORM 1.1, PostgreSQL 18, Node 24, pnpm,
+Vitest), cut down to what this needs: no auth, tenants or audit yet. Everything BIM is in
+`src/bim/` plus one migration, so it can be copied into CIP as a module.
+
+- `GET /api/bim/models`: the models (`id`, `key`, `name`, size, storey and element counts)
+- `GET /api/bim/models/:id/file`: the .xkt the viewer loads
+- `GET /api/bim/models/:id/statuses`: `{updatedAt, seeded, statuses: {globalId: status}}`
+- `PATCH /api/bim/models/:id/statuses`: `{statuses: {globalId: status}}`, merged in
+
+On startup every new `.xkt` in `backend/models/` is registered: the server reads the storeys and
+elements from the file's IFC metadata (`src/bim/xkt.ts`) and seeds test statuses (lower floors
+done, middle in progress, upper not started, about 3 % remarks), which `seeded: true` marks
+until someone changes a status. Display names come from `backend/models/names.json`.
+
+Moving into CIP: copy `src/bim/` and the migration, add `tenant_id` to both tables, put
+`@RequirePermission(..., 'BimModel')` on the routes, and store the .xkt files through CIP's
+files module (S3) instead of a folder.
 
 Sample models: `Duplex.ifc` from [xeokit-convert](https://github.com/xeokit/xeokit-convert),
 `schependomlaan.ifc`, `skolebygg.ifc` and `mab7000.ifc` from the [web-ifc](https://github.com/ThatOpen/engine_web-ifc)

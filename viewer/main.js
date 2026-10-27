@@ -28,8 +28,11 @@ viewer.camera.look = [0, 0, 0];
 viewer.camera.up = [0, 1, 0];
 // Render at the screen's pixel density (capped: 3x costs too much GPU on phones).
 viewer.scene.canvas.resolutionScale = Math.min(window.devicePixelRatio || 1, 2);
-viewer.scene.xrayMaterial.fillAlpha = 0.08;
-viewer.scene.xrayMaterial.edgeAlpha = 0.25;
+// Other floors while one is isolated: a faint grey outline, so the isolated floor stands out.
+viewer.scene.xrayMaterial.fillColor = [0.6, 0.64, 0.7];
+viewer.scene.xrayMaterial.fillAlpha = 0.05;
+viewer.scene.xrayMaterial.edgeColor = [0.45, 0.5, 0.58];
+viewer.scene.xrayMaterial.edgeAlpha = 0.15;
 
 new NavCubePlugin(viewer, { canvasId: "nav", visible: true, cameraFly: true });
 const loader = new XKTLoaderPlugin(viewer);
@@ -50,6 +53,16 @@ function storeyOf(id) {
   return null;
 }
 
+// Models CIP builds from a takeoff carry a CIP_Source pset: data quality and a note per element.
+// propertySets can hold undefined: xeokit pushes a pset the file references but doesn't contain.
+function source(id, property) {
+  const pset = viewer.metaScene.metaObjects[id]?.propertySets?.find((ps) => ps?.name === "CIP_Source");
+  return pset?.properties?.find((p) => p?.name === property)?.value || null;
+}
+
+// Placeholder geometry: the takeoff had too little data to model the element's real shape.
+const isPlaceholder = (id) => source(id, "Status") === "Недостаточно данных";
+
 function describe(id) {
   const mo = viewer.metaScene.metaObjects[id];
   const storey = storeyOf(id);
@@ -59,6 +72,8 @@ function describe(id) {
     ifcType: mo?.type ?? "",
     storeyId: storey?.id ?? null,
     storeyName: storey?.name ?? null,
+    quality: source(id, "Status"),
+    note: source(id, "Note"),
   };
 }
 
@@ -120,10 +135,16 @@ window.bim = {
       if (!viewer.scene.objects[id] || !COLORS[status]) continue;
       (byStatus[status] ??= []).push(id);
     }
+    // "Not started" is see-through so the work done stands out; when most of the model is not
+    // started (a new project) that would hide the whole building, so it stays solid then.
+    const notStarted = byStatus.not_started?.length ?? 0;
+    const ghostNotStarted = notStarted < Object.keys(statuses).length / 2;
     for (const [status, ids] of Object.entries(byStatus)) {
       viewer.scene.setObjectsColorized(ids, COLORS[status]);
-      if (status === "not_started") viewer.scene.setObjectsOpacity(ids, 0.35);
+      if (status === "not_started" && ghostNotStarted) viewer.scene.setObjectsOpacity(ids, 0.35);
     }
+    // Placeholder geometry is half transparent whatever its status, so it doesn't read as a real shape.
+    viewer.scene.setObjectsOpacity(all.filter(isPlaceholder), 0.45);
   },
 
   isolateFloor(storeyId) {
